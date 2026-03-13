@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Bill, BillCategory, BillRecurrence, MonthSummary } from "./types";
-import { formatMonthKey, getBillStatus, generateId } from "./utils-bills";
+import { formatMonthKey, getBillStatus, generateId, generateRecurringBill, navigateMonth } from "./utils-bills";
 
 const STORAGE_KEY = "@contas_boletos_bills";
 const SETTINGS_KEY = "@contas_boletos_settings";
@@ -44,7 +44,8 @@ type BillsAction =
   | { type: "MARK_UNPAID_ALL_RECURRING"; originalBillId: string; fromMonthKey: string }
   | { type: "UPDATE_SETTINGS"; settings: Partial<AppSettings> }
   | { type: "BULK_DELETE"; ids: string[] }
-  | { type: "BULK_MARK_PAID"; ids: string[]; paidAt: string };
+  | { type: "BULK_MARK_PAID"; ids: string[]; paidAt: string }
+  | { type: "BULK_ADD"; bills: Bill[] };
 
 function billsReducer(state: BillsState, action: BillsAction): BillsState {
   switch (action.type) {
@@ -104,6 +105,8 @@ function billsReducer(state: BillsState, action: BillsAction): BillsState {
           action.ids.includes(b.id) ? { ...b, isPaid: true, paidAt: action.paidAt, updatedAt: new Date().toISOString() } : b
         ),
       };
+    case "BULK_ADD":
+      return { ...state, bills: [...state.bills, ...action.bills] };
     default:
       return state;
   }
@@ -120,6 +123,7 @@ interface BillsContextValue {
   markUnpaid: (id: string) => Promise<void>;
   markPaidAllRecurring: (bill: Bill) => Promise<void>;
   markUnpaidAllRecurring: (bill: Bill) => Promise<void>;
+  addRecurringBills: (bills: Bill[]) => Promise<void>;
   bulkDelete: (ids: string[]) => Promise<void>;
   bulkMarkPaid: (ids: string[]) => Promise<void>;
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>;
@@ -204,6 +208,10 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
   const markUnpaidAllRecurring = useCallback(async (bill: Bill) => {
     const originalId = bill.originalBillId ?? bill.id;
     dispatch({ type: "MARK_UNPAID_ALL_RECURRING", originalBillId: originalId, fromMonthKey: bill.monthKey });
+  }, []);
+
+  const addRecurringBills = useCallback(async (bills: Bill[]) => {
+    dispatch({ type: "BULK_ADD", bills });
   }, []);
 
   const bulkDelete = useCallback(async (ids: string[]) => {
@@ -300,6 +308,7 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
       markUnpaid,
       markPaidAllRecurring,
       markUnpaidAllRecurring,
+      addRecurringBills,
       bulkDelete,
       bulkMarkPaid,
       updateSettings,
@@ -319,6 +328,7 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
       markUnpaid,
       markPaidAllRecurring,
       markUnpaidAllRecurring,
+      addRecurringBills,
       bulkDelete,
       bulkMarkPaid,
       updateSettings,

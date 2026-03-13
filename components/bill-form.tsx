@@ -21,6 +21,8 @@ import {
   formatCurrency,
   parseCurrencyInput,
   formatCurrencyInput,
+  generateRecurringBill,
+  navigateMonth,
 } from "@/lib/utils-bills";
 import {
   Bill,
@@ -70,7 +72,7 @@ export default function BillForm({ mode }: BillFormProps) {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const colors = useColors();
-  const { addBill, updateBill, bills, settings } = useBills();
+  const { addBill, addRecurringBills, updateBill, bills, settings } = useBills();
 
   const existingBill = mode === "edit" && params.id
     ? bills.find((b) => b.id === params.id)
@@ -159,6 +161,18 @@ export default function BillForm({ mode }: BillFormProps) {
           if (notifId) {
             await updateBill({ ...bill, notificationId: notifId });
           }
+        }
+
+        // Generate future instances for recurring bills
+        if (recurrence !== "unica") {
+          const monthsToGenerate = recurrence === "mensal" ? 11 : 1;
+          const futureInstances: Bill[] = [];
+          let currentMonthKey = monthKey;
+          for (let i = 0; i < monthsToGenerate; i++) {
+            currentMonthKey = navigateMonth(currentMonthKey, 1);
+            futureInstances.push(generateRecurringBill(bill, currentMonthKey));
+          }
+          await addRecurringBills(futureInstances);
         }
       } else if (existingBill) {
         // Cancel old notification
