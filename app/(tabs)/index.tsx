@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useBills } from "@/lib/bills-context";
@@ -31,6 +32,7 @@ function haptic() {
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { getMonthSummary, getUpcomingBills, getBillsByMonth, markPaid } = useBills();
   const [currentMonth, setCurrentMonth] = useState(formatMonthKey());
 
@@ -126,7 +128,7 @@ export default function HomeScreen() {
         {/* Summary Cards */}
         <View style={styles.summaryRow}>
           <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Total do Mês</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>Total Mês</Text>
             <Text style={[styles.summaryValue, { color: colors.foreground }]}>{formatCurrency(summary.totalAmount)}</Text>
             <Text style={[styles.summaryCount, { color: colors.muted }]}>{summary.billCount} conta{summary.billCount !== 1 ? "s" : ""}</Text>
           </View>
@@ -205,7 +207,11 @@ export default function HomeScreen() {
       <Pressable
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
+          {
+            backgroundColor: colors.primary,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+            bottom: Math.max(insets.bottom, 8) + 56 + 12,
+          },
         ]}
         onPress={handleAddBill}
       >
@@ -386,7 +392,6 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 90,
     right: 20,
     width: 56,
     height: 56,

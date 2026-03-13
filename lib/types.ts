@@ -77,7 +77,7 @@ export const RECURRENCE_LABELS: Record<BillRecurrence, string> = {
 
 export const NOTIFICATION_ADVANCE_LABELS: Record<NotificationAdvance, string> = {
   0: "No dia",
-  1: "1 dia antes",
-  3: "3 dias antes",
-  7: "7 dias antes",
+  1: "1 dia",
+  3: "3 dias",
+  7: "7 dias",
 };
