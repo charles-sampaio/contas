@@ -70,9 +70,11 @@ function parseDateInput(value: string): string | null {
 
 export default function BillForm({ mode }: BillFormProps) {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; updateAll?: string }>();
   const colors = useColors();
-  const { addBill, addRecurringBills, updateBill, bills, settings } = useBills();
+  const { addBill, addRecurringBills, updateBill, updateAllRecurring, bills, settings } = useBills();
+
+  const updateAllFuture = params.updateAll === "1";
 
   const existingBill = mode === "edit" && params.id
     ? bills.find((b) => b.id === params.id)
@@ -198,34 +200,43 @@ export default function BillForm({ mode }: BillFormProps) {
         // Cancel old notification
         await cancelBillNotification(existingBill.notificationId);
 
-        const updatedBill: Bill = {
-          ...existingBill,
+        const patch: Partial<Bill> = {
           name: name.trim(),
           amount,
           dueDate,
           category,
           recurrence,
-          isPaid,
-          paidAt: isPaid ? (existingBill.paidAt ?? new Date().toISOString()) : undefined,
           notificationEnabled,
           notificationAdvanceDays: notificationAdvance,
           notes: notes.trim() || undefined,
-          monthKey,
-          notificationId: undefined,
         };
 
-        // Schedule new notification
-        if (notificationEnabled && !isPaid) {
-          const notifId = await scheduleBillNotification(
-            updatedBill,
-            notificationAdvance,
-            settings.defaultNotificationHour,
-            settings.defaultNotificationMinute
-          );
-          updatedBill.notificationId = notifId;
-        }
+        if (updateAllFuture) {
+          // Update this and all future recurring instances
+          await updateAllRecurring(existingBill, patch);
+        } else {
+          const updatedBill: Bill = {
+            ...existingBill,
+            ...patch,
+            isPaid,
+            paidAt: isPaid ? (existingBill.paidAt ?? new Date().toISOString()) : undefined,
+            monthKey,
+            notificationId: undefined,
+          };
 
-        await updateBill(updatedBill);
+          // Schedule new notification
+          if (notificationEnabled && !isPaid) {
+            const notifId = await scheduleBillNotification(
+              updatedBill,
+              notificationAdvance,
+              settings.defaultNotificationHour,
+              settings.defaultNotificationMinute
+            );
+            updatedBill.notificationId = notifId;
+          }
+
+          await updateBill(updatedBill);
+        }
       }
 
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -237,7 +248,7 @@ export default function BillForm({ mode }: BillFormProps) {
     }
   };
 
-  const title = mode === "add" ? "Nova Conta" : "Editar Conta";
+  const title = mode === "add" ? "Nova Conta" : updateAllFuture ? "Editar Este e Seguintes" : "Editar Conta";
 
   return (
     <ScreenContainer containerClassName="bg-background">

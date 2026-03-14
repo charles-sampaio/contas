@@ -45,7 +45,9 @@ type BillsAction =
   | { type: "UPDATE_SETTINGS"; settings: Partial<AppSettings> }
   | { type: "BULK_DELETE"; ids: string[] }
   | { type: "BULK_MARK_PAID"; ids: string[]; paidAt: string }
-  | { type: "BULK_ADD"; bills: Bill[] };
+  | { type: "BULK_ADD"; bills: Bill[] }
+  | { type: "DELETE_ALL_RECURRING"; originalBillId: string; fromMonthKey: string }
+  | { type: "UPDATE_ALL_RECURRING"; originalBillId: string; fromMonthKey: string; patch: Partial<Bill> };
 
 function billsReducer(state: BillsState, action: BillsAction): BillsState {
   switch (action.type) {
@@ -107,6 +109,26 @@ function billsReducer(state: BillsState, action: BillsAction): BillsState {
       };
     case "BULK_ADD":
       return { ...state, bills: [...state.bills, ...action.bills] };
+    case "DELETE_ALL_RECURRING":
+      return {
+        ...state,
+        bills: state.bills.filter((b) => {
+          const billOriginalId = b.originalBillId ?? b.id;
+          if (billOriginalId !== action.originalBillId) return true;
+          if (b.monthKey < action.fromMonthKey) return true;
+          return false;
+        }),
+      };
+    case "UPDATE_ALL_RECURRING":
+      return {
+        ...state,
+        bills: state.bills.map((b) => {
+          const billOriginalId = b.originalBillId ?? b.id;
+          if (billOriginalId !== action.originalBillId) return b;
+          if (b.monthKey < action.fromMonthKey) return b;
+          return { ...b, ...action.patch, updatedAt: new Date().toISOString() };
+        }),
+      };
     default:
       return state;
   }
@@ -124,6 +146,8 @@ interface BillsContextValue {
   markPaidAllRecurring: (bill: Bill) => Promise<void>;
   markUnpaidAllRecurring: (bill: Bill) => Promise<void>;
   addRecurringBills: (bills: Bill[]) => Promise<void>;
+  deleteAllRecurring: (bill: Bill) => Promise<void>;
+  updateAllRecurring: (bill: Bill, patch: Partial<Bill>) => Promise<void>;
   bulkDelete: (ids: string[]) => Promise<void>;
   bulkMarkPaid: (ids: string[]) => Promise<void>;
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>;
@@ -212,6 +236,16 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
 
   const addRecurringBills = useCallback(async (bills: Bill[]) => {
     dispatch({ type: "BULK_ADD", bills });
+  }, []);
+
+  const deleteAllRecurring = useCallback(async (bill: Bill) => {
+    const originalId = bill.originalBillId ?? bill.id;
+    dispatch({ type: "DELETE_ALL_RECURRING", originalBillId: originalId, fromMonthKey: bill.monthKey });
+  }, []);
+
+  const updateAllRecurring = useCallback(async (bill: Bill, patch: Partial<Bill>) => {
+    const originalId = bill.originalBillId ?? bill.id;
+    dispatch({ type: "UPDATE_ALL_RECURRING", originalBillId: originalId, fromMonthKey: bill.monthKey, patch });
   }, []);
 
   const bulkDelete = useCallback(async (ids: string[]) => {
@@ -309,6 +343,8 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
       markPaidAllRecurring,
       markUnpaidAllRecurring,
       addRecurringBills,
+      deleteAllRecurring,
+      updateAllRecurring,
       bulkDelete,
       bulkMarkPaid,
       updateSettings,
@@ -329,6 +365,8 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
       markPaidAllRecurring,
       markUnpaidAllRecurring,
       addRecurringBills,
+      deleteAllRecurring,
+      updateAllRecurring,
       bulkDelete,
       bulkMarkPaid,
       updateSettings,

@@ -35,7 +35,7 @@ export default function BillDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
-  const { bills, markPaid, markUnpaid, markPaidAllRecurring, markUnpaidAllRecurring, deleteBill } = useBills();
+  const { bills, markPaid, markUnpaid, markPaidAllRecurring, markUnpaidAllRecurring, deleteBill, deleteAllRecurring, updateAllRecurring } = useBills();
 
   const bill = bills.find((b) => b.id === id);
 
@@ -112,24 +112,72 @@ export default function BillDetailScreen() {
 
   const handleEdit = () => {
     haptic();
-    router.push(`/bill/edit/${bill.id}` as any);
+    if (bill.recurrence !== "unica") {
+      Alert.alert(
+        "Editar Conta",
+        "Deseja editar apenas este mês ou este e todos os meses seguintes?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Só este mês",
+            onPress: () => router.push(`/bill/edit/${bill.id}` as any),
+          },
+          {
+            text: "Este e seguintes",
+            onPress: () => router.push({ pathname: `/bill/edit/${bill.id}` as any, params: { updateAll: "1" } }),
+          },
+        ]
+      );
+    } else {
+      router.push(`/bill/edit/${bill.id}` as any);
+    }
   };
 
   const handleDelete = () => {
     haptic();
-    Alert.alert("Excluir Conta", `Excluir "${bill.name}"? Esta ação não pode ser desfeita.`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Excluir",
-        style: "destructive",
-        onPress: async () => {
-          await cancelBillNotification(bill.notificationId);
-          await deleteBill(bill.id);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.back();
+    if (bill.recurrence !== "unica") {
+      Alert.alert(
+        "Excluir Conta",
+        `Excluir "${bill.name}"?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Só este mês",
+            style: "destructive",
+            onPress: async () => {
+              await cancelBillNotification(bill.notificationId);
+              await deleteBill(bill.id);
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.back();
+            },
+          },
+          {
+            text: "Este e seguintes",
+            style: "destructive",
+            onPress: async () => {
+              await cancelBillNotification(bill.notificationId);
+              await deleteAllRecurring(bill);
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.back();
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert("Excluir Conta", `Excluir "${bill.name}"? Esta ação não pode ser desfeita.`, [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            await cancelBillNotification(bill.notificationId);
+            await deleteBill(bill.id);
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            router.back();
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   return (

@@ -42,7 +42,7 @@ function getBillStatusLocal(bill: Bill): BillStatus {
 export default function BillsScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { getBillsByMonth, markPaid, markUnpaid, markPaidAllRecurring, markUnpaidAllRecurring, deleteBill, bulkMarkPaid, bulkDelete } = useBills();
+  const { getBillsByMonth, markPaid, markUnpaid, markPaidAllRecurring, markUnpaidAllRecurring, deleteBill, deleteAllRecurring, bulkMarkPaid, bulkDelete } = useBills();
   const [currentMonth, setCurrentMonth] = useState(formatMonthKey());
   const [filter, setFilter] = useState<FilterType>("todas");
   const [sort, setSort] = useState<SortType>("vencimento");
@@ -152,19 +152,45 @@ export default function BillsScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (item: Bill) => {
     haptic();
-    Alert.alert("Excluir Conta", "Tem certeza que deseja excluir esta conta?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Excluir",
-        style: "destructive",
-        onPress: async () => {
-          await deleteBill(id);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (item.recurrence !== "unica") {
+      Alert.alert(
+        "Excluir Conta",
+        `Excluir "${item.name}"?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Só este mês",
+            style: "destructive",
+            onPress: async () => {
+              await deleteBill(item.id);
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          },
+          {
+            text: "Este e seguintes",
+            style: "destructive",
+            onPress: async () => {
+              await deleteAllRecurring(item);
+              if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert("Excluir Conta", "Tem certeza que deseja excluir esta conta?", [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            await deleteBill(item.id);
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const handleBulkMarkPaid = async () => {
@@ -298,7 +324,7 @@ export default function BillsScreen() {
             <View style={[styles.actionDivider, { backgroundColor: colors.border }]} />
             <Pressable
               style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
-              onPress={() => handleDelete(item.id)}
+              onPress={() => handleDelete(item)}
             >
               <IconSymbol name="trash.fill" size={16} color={colors.error} />
               <Text style={[styles.actionText, { color: colors.error }]}>Excluir</Text>
