@@ -47,6 +47,8 @@ const MAPPING = {
   "magnifyingglass": "search",
   "moon.fill": "dark-mode",
   "sun.max.fill": "light-mode",
+  "lock.fill": "lock",
+  "arrow.right.square": "logout",
 } as IconMapping;
 
 /**
