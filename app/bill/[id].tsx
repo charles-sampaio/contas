@@ -179,7 +179,15 @@ export default function BillDetailScreen() {
         <View style={[styles.detailsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <DetailRow label="Vencimento" value={formatDateLong(bill.dueDate)} colors={colors} />
           <DetailRow label="Categoria" value={CATEGORY_LABELS[bill.category]} colors={colors} />
-          <DetailRow label="Recorrência" value={RECURRENCE_LABELS[bill.recurrence]} colors={colors} />
+          <DetailRow
+            label="Recorrência"
+            value={
+              bill.recurrence === "prazo" && bill.installments
+                ? `A Prazo (${bill.installmentNumber ?? 1}/${bill.installments})`
+                : RECURRENCE_LABELS[bill.recurrence]
+            }
+            colors={colors}
+          />
           <DetailRow
             label="Notificação"
             value={bill.notificationEnabled ? NOTIFICATION_ADVANCE_LABELS[bill.notificationAdvanceDays] : "Desativada"}

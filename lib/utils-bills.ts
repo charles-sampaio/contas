@@ -95,7 +95,7 @@ export function getNextMonthKey(monthKey: string): string {
   return navigateMonth(monthKey, 1);
 }
 
-export function generateRecurringBill(bill: Bill, targetMonthKey: string): Bill {
+export function generateRecurringBill(bill: Bill, targetMonthKey: string, installmentNumber?: number): Bill {
   const { year, month } = parseMonthKey(targetMonthKey);
   // Keep same day of month
   const originalDay = parseInt(bill.dueDate.split("-")[2]);
@@ -114,5 +114,6 @@ export function generateRecurringBill(bill: Bill, targetMonthKey: string): Bill 
     originalBillId: bill.originalBillId ?? bill.id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...(installmentNumber !== undefined ? { installmentNumber } : {}),
   };
 }

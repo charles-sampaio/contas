@@ -1,6 +1,5 @@
 import "@/global.css";
 import { BillsProvider } from "@/lib/bills-context";
-import { AuthProvider } from "@/lib/auth-context";
 import { requestNotificationPermissions } from "@/lib/notifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
@@ -90,13 +89,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
           <BillsProvider>
           {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
           {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
           {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
           <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="login" options={{ presentation: "fullScreenModal" }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
             <Stack.Screen name="bill/add" options={{ presentation: "modal" }} />
@@ -104,7 +101,6 @@ export default function RootLayout() {
             <Stack.Screen name="bill/edit/[id]" options={{ presentation: "modal" }} />
           </Stack>
           </BillsProvider>
-          </AuthProvider>
           <StatusBar style="auto" />
         </QueryClientProvider>
       </trpc.Provider>

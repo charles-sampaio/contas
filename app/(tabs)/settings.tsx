@@ -9,13 +9,11 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useBills } from "@/lib/bills-context";
 import { useColors } from "@/hooks/use-colors";
 import { useThemeContext } from "@/lib/theme-provider";
-import { useAuth } from "@/lib/auth-context";
 import {
   requestNotificationPermissions,
   cancelAllBillNotifications,
@@ -33,10 +31,8 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function SettingsScreen() {
   const colors = useColors();
-  const router = useRouter();
   const { settings, updateSettings, bills, bulkDelete } = useBills();
   const { colorScheme, setColorScheme } = useThemeContext();
-  const { hasPin, logout } = useAuth();
 
   const handleToggleNotifications = async (value: boolean) => {
     haptic();
@@ -210,58 +206,6 @@ export default function SettingsScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
-
-        {/* Security / PIN */}
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Segurança</Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingRow,
-              { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={() => router.push("/login")}
-          >
-            <View style={styles.settingInfo}>
-              <IconSymbol name="lock.fill" size={18} color={colors.primary} />
-              <View>
-                <Text style={[styles.settingLabel, { color: colors.foreground }]}>
-                  {hasPin ? "Alterar PIN" : "Configurar PIN"}
-                </Text>
-                <Text style={[styles.settingDesc, { color: colors.muted }]}>
-                  {hasPin ? "PIN de acesso ativo" : "Sem PIN configurado"}
-                </Text>
-              </View>
-            </View>
-            <IconSymbol name="chevron.right" size={16} color={colors.muted} />
-          </Pressable>
-          {hasPin && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.settingRow,
-                { opacity: pressed ? 0.7 : 1 },
-              ]}
-              onPress={() => {
-                haptic();
-                Alert.alert("Sair", "Deseja sair e bloquear o app?", [
-                  { text: "Cancelar", style: "cancel" },
-                  {
-                    text: "Sair",
-                    style: "destructive",
-                    onPress: () => logout().then(() => router.replace("/login")),
-                  },
-                ]);
-              }}
-            >
-              <View style={styles.settingInfo}>
-                <IconSymbol name="arrow.right.square" size={18} color={colors.error} />
-                <View>
-                  <Text style={[styles.settingLabel, { color: colors.error }]}>Sair / Bloquear</Text>
-                  <Text style={[styles.settingDesc, { color: colors.muted }]}>Exigir PIN na próxima abertura</Text>
-                </View>
-              </View>
-            </Pressable>
-          )}
         </View>
 
         {/* Danger Zone */}

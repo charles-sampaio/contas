@@ -47,7 +47,7 @@ interface BillFormProps {
 const CATEGORIES: BillCategory[] = [
   "moradia", "transporte", "saude", "educacao", "alimentacao", "lazer", "servicos", "outros"
 ];
-const RECURRENCES: BillRecurrence[] = ["unica", "mensal", "anual"];
+const RECURRENCES: BillRecurrence[] = ["unica", "mensal", "anual", "prazo"];
 const NOTIFICATION_ADVANCES: NotificationAdvance[] = [0, 1, 3, 7];
 
 function formatDateInput(value: string): string {
@@ -101,6 +101,9 @@ export default function BillForm({ mode }: BillFormProps) {
   );
   const [isPaid, setIsPaid] = useState(existingBill?.isPaid ?? false);
   const [notes, setNotes] = useState(existingBill?.notes ?? "");
+  const [installments, setInstallments] = useState<string>(
+    existingBill?.installments ? String(existingBill.installments) : "2"
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -136,6 +139,8 @@ export default function BillForm({ mode }: BillFormProps) {
       const monthKey = dueDate.slice(0, 7);
 
       if (mode === "add") {
+        const totalInstallments = recurrence === "prazo" ? Math.max(2, parseInt(installments) || 2) : undefined;
+
         const bill = await addBill({
           name: name.trim(),
           amount,
@@ -148,31 +153,46 @@ export default function BillForm({ mode }: BillFormProps) {
           notificationAdvanceDays: notificationAdvance,
           notes: notes.trim() || undefined,
           monthKey,
+          ...(totalInstallments ? { installments: totalInstallments, installmentNumber: 1 } : {}),
         });
+
+        // Fix: set originalBillId on the root bill so propagation works
+        const rootBill: Bill = { ...bill, originalBillId: bill.id };
 
         // Schedule notification
         if (notificationEnabled && !isPaid) {
           const notifId = await scheduleBillNotification(
-            bill,
+            rootBill,
             notificationAdvance,
             settings.defaultNotificationHour,
             settings.defaultNotificationMinute
           );
           if (notifId) {
-            await updateBill({ ...bill, notificationId: notifId });
+            await updateBill({ ...rootBill, notificationId: notifId });
+          } else {
+            await updateBill(rootBill);
           }
+        } else {
+          await updateBill(rootBill);
         }
 
         // Generate future instances for recurring bills
         if (recurrence !== "unica") {
-          const monthsToGenerate = recurrence === "mensal" ? 11 : 1;
+          const monthsToGenerate =
+            recurrence === "mensal" ? 11 :
+            recurrence === "anual" ? 1 :
+            recurrence === "prazo" ? (totalInstallments! - 1) : 0;
+
           const futureInstances: Bill[] = [];
           let currentMonthKey = monthKey;
           for (let i = 0; i < monthsToGenerate; i++) {
             currentMonthKey = navigateMonth(currentMonthKey, 1);
-            futureInstances.push(generateRecurringBill(bill, currentMonthKey));
+            const installmentNum = totalInstallments ? i + 2 : undefined;
+            futureInstances.push(generateRecurringBill(rootBill, currentMonthKey, installmentNum));
           }
-          await addRecurringBills(futureInstances);
+          if (futureInstances.length > 0) {
+            await addRecurringBills(futureInstances);
+          }
         }
       } else if (existingBill) {
         // Cancel old notification
@@ -354,6 +374,33 @@ export default function BillForm({ mode }: BillFormProps) {
             </View>
           </View>
 
+          {/* Installments — only for "prazo" */}
+          {recurrence === "prazo" && (
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: colors.muted }]}>Número de Parcelas</Text>
+              <View style={[styles.amountInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[styles.currencyPrefix, { color: colors.muted }]}>x</Text>
+                <TextInput
+                  style={[styles.amountTextInput, { color: colors.foreground }]}
+                  value={installments}
+                  onChangeText={(t) => {
+                    const digits = t.replace(/\D/g, "");
+                    setInstallments(digits);
+                  }}
+                  placeholder="2"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  maxLength={2}
+                />
+                <Text style={[styles.currencyPrefix, { color: colors.muted }]}>parcelas</Text>
+              </View>
+              <Text style={[styles.fieldHint, { color: colors.muted }]}>
+                Serão criadas {Math.max(2, parseInt(installments) || 2)} contas mensais com o mesmo valor
+              </Text>
+            </View>
+          )}
+
           {/* Notification */}
           <View style={[styles.fieldGroup, styles.switchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.switchInfo}>
@@ -510,6 +557,11 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     marginTop: 4,
+  },
+  fieldHint: {
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   chipGrid: {
     flexDirection: "row",

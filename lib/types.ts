@@ -8,7 +8,7 @@ export type BillCategory =
   | "servicos"
   | "outros";
 
-export type BillRecurrence = "unica" | "mensal" | "anual";
+export type BillRecurrence = "unica" | "mensal" | "anual" | "prazo";
 
 export type BillStatus = "pendente" | "pago" | "vencido";
 
@@ -33,6 +33,9 @@ export interface Bill {
   monthKey: string; // "YYYY-MM"
   // For recurring bills, link to the original bill template
   originalBillId?: string;
+  // For installment bills ("prazo"), track total and current installment number
+  installments?: number;
+  installmentNumber?: number;
 }
 
 export interface MonthSummary {
@@ -73,6 +76,7 @@ export const RECURRENCE_LABELS: Record<BillRecurrence, string> = {
   unica: "Única",
   mensal: "Mensal",
   anual: "Anual",
+  prazo: "A Prazo",
 };
 
 export const NOTIFICATION_ADVANCE_LABELS: Record<NotificationAdvance, string> = {
