@@ -47,7 +47,7 @@ type BillsAction =
   | { type: "BULK_MARK_PAID"; ids: string[]; paidAt: string }
   | { type: "BULK_ADD"; bills: Bill[] }
   | { type: "DELETE_ALL_RECURRING"; originalBillId: string; fromMonthKey: string }
-  | { type: "UPDATE_ALL_RECURRING"; originalBillId: string; fromMonthKey: string; patch: Partial<Bill> };
+  | { type: "UPDATE_ALL_RECURRING"; originalBillId: string; fromMonthKey: string; patch: Partial<Bill>; dayOfMonth: number };
 
 function billsReducer(state: BillsState, action: BillsAction): BillsState {
   switch (action.type) {
@@ -126,7 +126,20 @@ function billsReducer(state: BillsState, action: BillsAction): BillsState {
           const billOriginalId = b.originalBillId ?? b.id;
           if (billOriginalId !== action.originalBillId) return b;
           if (b.monthKey < action.fromMonthKey) return b;
-          return { ...b, ...action.patch, updatedAt: new Date().toISOString() };
+          // Recalculate dueDate: keep the same day of month but use each bill's own monthKey
+          const [year, month] = b.monthKey.split("-").map(Number);
+          const lastDayOfMonth = new Date(year, month, 0).getDate();
+          const clampedDay = Math.min(action.dayOfMonth, lastDayOfMonth);
+          const newDueDate = `${b.monthKey}-${String(clampedDay).padStart(2, "0")}`;
+          // Exclude installmentNumber from patch so each instance keeps its own number
+          const { installmentNumber: _skip, dueDate: _skipDue, monthKey: _skipMonth, ...safeFields } = action.patch;
+          return {
+            ...b,
+            ...safeFields,
+            dueDate: newDueDate,
+            monthKey: b.monthKey,
+            updatedAt: new Date().toISOString(),
+          };
         }),
       };
     default:
@@ -245,7 +258,10 @@ export function BillsProvider({ children }: { children: React.ReactNode }) {
 
   const updateAllRecurring = useCallback(async (bill: Bill, patch: Partial<Bill>) => {
     const originalId = bill.originalBillId ?? bill.id;
-    dispatch({ type: "UPDATE_ALL_RECURRING", originalBillId: originalId, fromMonthKey: bill.monthKey, patch });
+    // Extract the day of month from patch.dueDate (if provided) or fall back to the bill's own dueDate
+    const dueDateSource = patch.dueDate ?? bill.dueDate;
+    const dayOfMonth = parseInt(dueDateSource.split("-")[2], 10);
+    dispatch({ type: "UPDATE_ALL_RECURRING", originalBillId: originalId, fromMonthKey: bill.monthKey, patch, dayOfMonth });
   }, []);
 
   const bulkDelete = useCallback(async (ids: string[]) => {
